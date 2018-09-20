@@ -92,7 +92,7 @@ class GridWorldEnv(gym.Env):
         self.level = load(fname)
 
         self.obs_shape = self.level.shape + (4,)
-        self.observation_space_space = gym.spaces.Box(low=0, high=1, shape=self.obs_shape, dtype=np.float32)
+        self.observation_space = gym.spaces.Box(low=0, high=1, shape=self.obs_shape, dtype=np.float32)
         self.action_space = gym.spaces.Discrete(5)
 
         self.state = self._new_state()
@@ -192,13 +192,13 @@ class GridWorldEnv(gym.Env):
             self.state.player_x = new_x
             self.state.player_y = new_y
 
-        obs = self._state_to_obs()
+        obs = _state_to_obs(self.level, self.state)
 
         return obs, reward, done, {}
 
     def reset(self):
         self.state = self._new_state()
-        return self._state_to_obs()
+        return _state_to_obs(self.level, self.state)
 
     def render(self, mode='human'):
         # from gym.envs.classic_control import rendering
