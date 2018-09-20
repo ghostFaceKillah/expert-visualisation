@@ -1,5 +1,6 @@
 import attr
 import gym
+from gym.utils import seeding
 import numpy as np
 import os
 
@@ -99,7 +100,7 @@ class GridWorldEnv(gym.Env):
         self.viewer = None
 
     def _generate_fname(self):
-        return os.path.join(constants.ROOT_DIR, 'levels', 'level_01.txt')
+        return os.path.join(constants.ROOT_DIR, 'levels', 'level_02.txt')
 
     def _draw_player_initial_position(self):
         while True:
@@ -200,14 +201,18 @@ class GridWorldEnv(gym.Env):
         self.state = self._new_state()
         return _state_to_obs(self.level, self.state)
 
-    def render(self, mode='human'):
-        # from gym.envs.classic_control import rendering
-        # if self.viewer is None:
-        #     self.viewer = rendering.SimpleImageViewer()
-        # img = self._state_to_human_array()
-        # self.viewer.imshow(img)
-        # return self.viewer.isopen
-        return self._state_to_human_array()
+    def render(self, mode='rgb'):
+        if mode == 'rgb':
+            return self._state_to_human_array()
+        elif mode == 'human':
+            from gym.envs.classic_control import rendering
+            if self.viewer is None:
+                self.viewer = rendering.SimpleImageViewer()
+            img = self._state_to_human_array()
+            self.viewer.imshow(img)
+            return self.viewer.isopen
+        else:
+            raise ValueError("Unknown display mode")
 
     def close(self):
         if self.viewer is not None:
@@ -215,7 +220,8 @@ class GridWorldEnv(gym.Env):
             self.viewer = None
 
     def seed(self, seed=None):
-        pass
+        self.np_random, seed = seeding.np_random(seed)
+        return [seed]
 
 
 def _map_input_to_action(key):
@@ -234,7 +240,7 @@ def _map_input_to_action(key):
 if __name__ == '__main__':
     env = GridWorldEnv()
     env.reset()
-    env.render()
+    env.render(mode='human')
     done = False
 
     while not done:
@@ -246,7 +252,7 @@ if __name__ == '__main__':
         obs, reward, done, info = env.step(action)
         if reward != 0:
             print(f"Got reward {reward}!")
-        env.render()
+        env.render(mode='human')
 
     env.close()
 

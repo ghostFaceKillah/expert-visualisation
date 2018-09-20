@@ -2,21 +2,12 @@ import gym
 
 from baselines.a2c.runner import Runner
 from baselines.a2c.a2c import Model
+from baselines.common import set_global_seeds
 
 from baselines.common.policies import build_policy
 import baselines.common.vec_env.subproc_vec_env as subproc_vec_env
 
 import grid_world
-
-
-"""
-! !  ! ! !! ! ! ! ! ! !  ! ! ! !! 
-! !  ! ! TODO: Proper Seeding !!! 
-!! ! ! ! ! ! !  ! ! ! !!  ! ! ! ! 
-
-First we will start with baselines to remove the possibility of 
-getting the implementation wrong.
-"""
 
 
 def make_vec_env(env_id, num_env, seed):
@@ -35,10 +26,10 @@ def make_vec_env(env_id, num_env, seed):
 
 if __name__ == '__main__':
     env = make_vec_env('grid_world-v0', 8, 0)
-
+    seed = 17
     nsteps = 20
 
-    # set_global_seeds(seed)
+    set_global_seeds(seed)
 
     nenvs = env.num_envs
     policy = build_policy(env, 'mike_cnn')
@@ -51,10 +42,14 @@ if __name__ == '__main__':
     )
 
     runner = Runner(env, model, nsteps=nsteps)
+    r_acc = []
 
     while True:
         obs, states, rewards, masks, actions, values = runner.run()
         policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values)
 
-        print("www")
+        r_mean = rewards.mean()
+        r_acc.append(r_mean)
+
+        print(r_mean)
 
