@@ -9,13 +9,15 @@ import constants
 # map encoding meanings
 FREE_PASS = 0
 WALL = 1
-PLAYER = 2
+START = 2
 GOAL = 3
 PERIL = 4
 DEADLY_PERIL = 5
+PLAYER = 6
 
 COLOR_MAP = {
     WALL: [100, 100, 100],
+    START: [50, 50, 50],
     PERIL: [255, 255, 0],
     DEADLY_PERIL: [255, 0, 0],
     GOAL:  [0, 255, 0],
@@ -23,12 +25,13 @@ COLOR_MAP = {
 }
 
 # actions
-NONE = 0
-LEFT = 1
-RIGHT = 2
-UP = 3
-DOWN = 4
+# NONE = 0
+LEFT = 0
+RIGHT = 1
+UP = 2
+DOWN = 3
 
+PIXEL_SIZE = 10
 
 def load(fname):
     with open(fname, 'r') as f:
@@ -67,8 +70,6 @@ class State:
 
     level: np.ndarray
 
-PIXEL_SIZE = 10
-
 
 def _state_to_obs(level, state):
     """
@@ -87,6 +88,22 @@ def _state_to_obs(level, state):
     return resu
 
 
+def _state_to_human_array(level, player_x, player_y):
+    img_shape = level.shape + (3,)
+    img = np.zeros(shape=img_shape, dtype=np.uint8)
+
+    for thing, color in COLOR_MAP.items():
+        img[level == thing] = color
+
+    img[player_y, player_x] = COLOR_MAP[PLAYER]
+
+    # Make it not for ants
+    big_img = np.repeat(img, PIXEL_SIZE, axis=0)
+    big_img = np.repeat(big_img, PIXEL_SIZE, axis=1)
+
+    return big_img
+
+
 class GridWorldEnv(gym.Env):
     def __init__(self):
         fname = self._generate_fname()
@@ -103,12 +120,14 @@ class GridWorldEnv(gym.Env):
         return os.path.join(constants.ROOT_DIR, 'levels', 'level_02.txt')
 
     def _draw_player_initial_position(self):
-        while True:
-            player_y = np.random.randint(self.level.shape[0])
-            player_x = np.random.randint(self.level.shape[1])
+        acc = []
+        for i in range(self.level.shape[0]):
+            for j in range(self.level.shape[1]):
+                if self.level[i][j] == START:
+                    acc.append((i, j))
+        player_y, player_x = acc[np.random.randint(len(acc))]
 
-            if self.level[player_y][player_x] == 0:
-                return player_x, player_y
+        return player_x, player_y
 
     def _new_state(self):
         player_x, player_y = self._draw_player_initial_position()
@@ -120,9 +139,7 @@ class GridWorldEnv(gym.Env):
         )
 
     def _map_action_to_new_position(self, player_x, player_y, action):
-        if action == NONE:
-            new_x, new_y = player_x, player_y
-        elif action == LEFT:
+        if action == LEFT:
             new_x, new_y = player_x - 1, player_y
         elif action == RIGHT:
             new_x, new_y = player_x + 1, player_y
@@ -144,6 +161,8 @@ class GridWorldEnv(gym.Env):
     def _handle(self, field_type: int):
         if field_type == FREE_PASS:
             resu = (0, False, True)
+        elif field_type == START:
+            resu = (0, False, True)
         elif field_type == WALL:
             resu = (0, False, False)
         elif field_type == GOAL:
@@ -159,25 +178,7 @@ class GridWorldEnv(gym.Env):
 
         return reward, done, can_move_here
 
-    def _state_to_human_array(self):
-        img_shape = self.level.shape + (3,)
-        img = np.zeros(shape=img_shape, dtype=np.uint8)
-
-        for thing, color in COLOR_MAP.items():
-            img[self.level == thing] = color
-
-        img[self.state.player_y, self.state.player_x] = COLOR_MAP[PLAYER]
-
-        # Make it not for ants
-        big_img = np.repeat(img, PIXEL_SIZE, axis=0)
-        big_img = np.repeat(big_img, PIXEL_SIZE, axis=1)
-
-        return big_img
-
     def step(self, action):
-        """
-
-        """
         # map action to new position
         new_x, new_y = self._map_action_to_new_position(
             self.state.player_x,
@@ -203,12 +204,16 @@ class GridWorldEnv(gym.Env):
 
     def render(self, mode='rgb'):
         if mode == 'rgb':
-            return self._state_to_human_array()
+            return _state_to_human_array(
+                self.level, self.state.player_x, self.state.player_y
+            )
         elif mode == 'human':
             from gym.envs.classic_control import rendering
             if self.viewer is None:
                 self.viewer = rendering.SimpleImageViewer()
-            img = self._state_to_human_array()
+            img = _state_to_human_array(
+                self.level, self.state.player_x, self.state.player_y
+            )
             self.viewer.imshow(img)
             return self.viewer.isopen
         else:
@@ -233,8 +238,6 @@ def _map_input_to_action(key):
         return LEFT
     elif key == 'd':
         return RIGHT
-    else:
-        return NONE
 
 
 if __name__ == '__main__':

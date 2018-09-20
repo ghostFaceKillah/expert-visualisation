@@ -1,23 +1,11 @@
-Wanted functionality:
-
-### Expert-augmented A2C with full visualisation:
-
-* Current value function
-
-* Trajectory viewer
+### Visualization of Expert-augmented A2C with full visualisation:
 
 
+### TODO:
+- Expert data provider
+- Visualisation
+    * plot anything
+    * Current value function
+    * Trajectory viewer
+    * Advantages accumulated this turn
 
-Grid world environment
-
-- Expert data collector
-
-### Observation space
-
-Tuple of binaries
-
-agent position
-walls
-reward position
-negative rewards
-die negative reward
