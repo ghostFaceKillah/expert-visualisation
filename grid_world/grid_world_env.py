@@ -7,31 +7,9 @@ import os
 import constants
 
 # map encoding meanings
-FREE_PASS = 0
-WALL = 1
-START = 2
-GOAL = 3
-PERIL = 4
-DEADLY_PERIL = 5
-PLAYER = 6
+from grid_world.plotting import _state_to_human_array
+from grid_world.grid_constants import *
 
-COLOR_MAP = {
-    WALL: [100, 100, 100],
-    START: [50, 50, 50],
-    PERIL: [255, 255, 0],
-    DEADLY_PERIL: [255, 0, 0],
-    GOAL:  [0, 255, 0],
-    PLAYER: [0, 0, 255]
-}
-
-# actions
-# NONE = 0
-LEFT = 0
-RIGHT = 1
-UP = 2
-DOWN = 3
-
-PIXEL_SIZE = 10
 
 def load(fname):
     with open(fname, 'r') as f:
@@ -88,25 +66,13 @@ def _state_to_obs(level, state):
     return resu
 
 
-def _state_to_human_array(level, player_x, player_y):
-    img_shape = level.shape + (3,)
-    img = np.zeros(shape=img_shape, dtype=np.uint8)
-
-    for thing, color in COLOR_MAP.items():
-        img[level == thing] = color
-
-    img[player_y, player_x] = COLOR_MAP[PLAYER]
-
-    # Make it not for ants
-    big_img = np.repeat(img, PIXEL_SIZE, axis=0)
-    big_img = np.repeat(big_img, PIXEL_SIZE, axis=1)
-
-    return big_img
+def _generate_fname():
+    return os.path.join(constants.ROOT_DIR, 'levels', 'level_02.txt')
 
 
 class GridWorldEnv(gym.Env):
     def __init__(self):
-        fname = self._generate_fname()
+        fname = _generate_fname()
         self.level = load(fname)
 
         self.obs_shape = self.level.shape + (4,)
@@ -116,8 +82,6 @@ class GridWorldEnv(gym.Env):
         self.state = self._new_state()
         self.viewer = None
 
-    def _generate_fname(self):
-        return os.path.join(constants.ROOT_DIR, 'levels', 'level_02.txt')
 
     def _draw_player_initial_position(self):
         acc = []
