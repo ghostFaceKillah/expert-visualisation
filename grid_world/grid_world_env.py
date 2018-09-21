@@ -66,8 +66,23 @@ def _state_to_obs(level, state):
     return resu
 
 
+def generate_all_possible_state_obs(level):
+    acc = []
+    for i in range(level.shape[0]):
+        for j in range(level.shape[1]):
+            if level[i, j] not in PRINTALBLE:
+                state = State(
+                    player_x=j,
+                    player_y=i,
+                    level=level
+                )
+                acc.append((state, _state_to_obs(level, state)))
+
+    return acc
+
+
 def _generate_fname():
-    return os.path.join(constants.ROOT_DIR, 'levels', 'level_02.txt')
+    return os.path.join(constants.ROOT_DIR, 'levels', 'level_03.txt')
 
 
 class GridWorldEnv(gym.Env):
@@ -77,7 +92,7 @@ class GridWorldEnv(gym.Env):
 
         self.obs_shape = self.level.shape + (4,)
         self.observation_space = gym.spaces.Box(low=0, high=1, shape=self.obs_shape, dtype=np.float32)
-        self.action_space = gym.spaces.Discrete(5)
+        self.action_space = gym.spaces.Discrete(4)
 
         self.state = self._new_state()
         self.viewer = None

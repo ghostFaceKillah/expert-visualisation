@@ -3,9 +3,11 @@
 
 ### TODO:
 - Expert data provider
+- Expert augmented implementation
 - Visualisation
-    * plot anything
-    * Current value function
+    * action prob plot
+
+- ideas
     * Trajectory viewer
     * Advantages accumulated this turn
 

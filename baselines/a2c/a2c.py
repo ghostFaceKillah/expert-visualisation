@@ -16,7 +16,7 @@ from tensorflow import losses
 
 class Model(object):
 
-    def __init__(self, policy, env, nsteps,
+    def __init__(self, policy, env, nsteps, eval_size,
             ent_coef=0.01, vf_coef=0.5, max_grad_norm=0.5, lr=7e-4,
             alpha=0.99, epsilon=1e-5, total_timesteps=int(80e6), lrschedule='linear'):
 
@@ -26,6 +26,7 @@ class Model(object):
 
         with tf.variable_scope('a2c_model', reuse=tf.AUTO_REUSE):
             step_model = policy(nenvs, 1, sess)
+            eval_model = policy(eval_size, 1, sess)
             train_model = policy(nbatch, nsteps, sess)
 
         A = tf.placeholder(train_model.action.dtype, train_model.action.shape)
@@ -66,10 +67,18 @@ class Model(object):
             )
             return policy_loss, value_loss, policy_entropy
 
+        def evaluation(obs):
+            return sess.run(
+                [eval_model.pi, eval_model.vf],
+                {
+                    eval_model.X: obs
+                }
+            )
 
         self.train = train
         self.train_model = train_model
         self.step_model = step_model
+        self.evaluation = evaluation
         self.step = step_model.step
         self.value = step_model.value
         self.initial_state = step_model.initial_state

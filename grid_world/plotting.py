@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 from grid_world.grid_constants import *
@@ -20,12 +21,6 @@ def _state_to_human_array(level, player_x, player_y):
     return big_img
 
 
-def _plot_func_over_level(level: np.ndarray, player_x: int, player_y: int, f: np.ndarray):
-    """
-    """
-    pass
-
-
 def _map_to_unit_square(len_x, len_y, idx, idy):
     longer = max(len_x, len_y)
 
@@ -44,9 +39,35 @@ def _map_to_unit_square(len_x, len_y, idx, idy):
         [x_start, y_start + unit],
     ]
 
+def relative_luminance(color):
+    """Calculate the relative luminance of a color according to W3C standards
+    Taken straight from seaborn.
+    Parameters
+    ----------
+    color : matplotlib color or sequence of matplotlib colors
+        Hex code, rgb-tuple, or html color name.
+    Returns
+    -------
+    luminance : float(s) between 0 and 1
+    """
+    rgb = mpl.colors.colorConverter.to_rgba_array(color)[:, :3]
+    rgb = np.where(rgb <= .03928, rgb / 12.92, ((rgb + .055) / 1.055) ** 2.4)
+    lum = rgb.dot([.2126, .7152, .0722])
+    try:
+        return lum.item()
+    except ValueError:
+        return lum
+
+
+def _to_center(sides):
+    x = (sides[0][0] + sides[2][0]) / 2
+    y = (sides[0][1] + sides[2][1]) / 2
+
+    return x, y
+
 
 class Square:
-    def __init__(self, level, idx, idy, value, normalized_value, cmap):
+    def __init__(self, level, idx, idy, value, normalized_value, cmap, fmt=None):
 
         self.level = level
         self.idx = idx
@@ -62,7 +83,13 @@ class Square:
             idy
         )
 
+        self.center = _to_center(self.sides)
+
         self.color = self._resolve_color()
+        if fmt is None:
+            self.fmt = ".2f"
+        else:
+            self.fmt = fmt
 
     def _resolve_color(self):
         type = self.level[self.idy, self.idx]
@@ -74,16 +101,25 @@ class Square:
         else:
             return self.cmap(self.normalized_value)
 
+    def _annotate_text(self, ax):
+        lum = relative_luminance(self.color)
+        text_color = ".15" if lum > .408 else "w"
+        annotation = ("{:" + self.fmt + "}").format(self.value)
+        text_kwargs = dict(color=text_color, ha="center", va="center")
+        x, y = self.center
+        ax.text(x, y, annotation, **text_kwargs)
+
     def plot(self, ax):
         polygon = plt.Polygon(self.sides, facecolor=self.color)
         ax.add_patch(polygon)
+        self._annotate_text(ax)
 
     def __repr__(self):
         return str(self.sides)
 
 
 class PlotFuncOverLevel:
-    def __init__(self, level: np.ndarray, player_x: int, player_y: int, func: np.ndarray):
+    def __init__(self, level: np.ndarray, player_x, player_y, func: np.ndarray, scaling='minus_unit'):
         assert level.shape == func.shape
 
         self.level = level
@@ -92,13 +128,10 @@ class PlotFuncOverLevel:
         self.player_y = player_y
 
         self.func =func
-        self.norm_func = (func - func.min()) / (func.max() - func.min())
-        _has_two_signs = self.func.max() > 0.0 and self.func.min() < 0
+        if scaling == 'minus_unit':
+            self.norm_func = (func + 1) / 2
 
-        if _has_two_signs:
-            self.cmap = plt.get_cmap('Spectral')
-        else:
-            self.cmap = plt.get_cmap('BuGn')
+        self.cmap = plt.get_cmap('coolwarm')
 
         fields = []
 
@@ -111,12 +144,12 @@ class PlotFuncOverLevel:
 
         self.fields = fields
 
-    def plot(self):
+    def save_img(self, img_fname):
         ax = plt.axes()
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)
         for field in self.fields:
             field.plot(ax)
-        plt.savefig('hehe.png')
+        plt.savefig(img_fname)
         plt.close()
 
