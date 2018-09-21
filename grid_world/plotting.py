@@ -46,12 +46,14 @@ def _map_to_unit_square(len_x, len_y, idx, idy):
 
 
 class Square:
-    def __init__(self, level, idx, idy, value):
+    def __init__(self, level, idx, idy, value, normalized_value, cmap):
 
         self.level = level
         self.idx = idx
         self.idy = idy
-        self.value = value
+        self.value = value  # should be already normalized
+        self.normalized_value = normalized_value
+        self.cmap = cmap
 
         self.sides = _map_to_unit_square(
             self.level.shape[1],
@@ -70,7 +72,7 @@ class Square:
             color = [float(c) / 255 for c in raw_color]
             return color
         else:
-            return self.value * np.ones(shape=3, dtype=np.float32)
+            return self.cmap(self.normalized_value)
 
     def plot(self, ax):
         polygon = plt.Polygon(self.sides, facecolor=self.color)
@@ -89,14 +91,22 @@ class PlotFuncOverLevel:
         self.player_x = player_x
         self.player_y = player_y
 
-        self.func = func
+        self.func =func
+        self.norm_func = (func - func.min()) / (func.max() - func.min())
+        _has_two_signs = self.func.max() > 0.0 and self.func.min() < 0
+
+        if _has_two_signs:
+            self.cmap = plt.get_cmap('Spectral')
+        else:
+            self.cmap = plt.get_cmap('BuGn')
 
         fields = []
 
         for y in range(level.shape[0]):
             for x in range(level.shape[1]):
                 value = func[y, x]
-                sq = Square(level, x, y, value)
+                norm_val = self.norm_func[y, x]
+                sq = Square(level, x, y, value, norm_val, self.cmap)
                 fields.append(sq)
 
         self.fields = fields
@@ -109,5 +119,4 @@ class PlotFuncOverLevel:
             field.plot(ax)
         plt.savefig('hehe.png')
         plt.close()
-
 

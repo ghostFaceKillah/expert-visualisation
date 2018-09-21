@@ -11,7 +11,7 @@ if __name__ == '__main__':
         level,
         player_x=0,
         player_y=0,
-        func=np.zeros_like(level, dtype=np.float32)
+        func=np.random.uniform(high=1.0, low=0.0, size=level.shape)
     )
     f_plot.plot()
 
