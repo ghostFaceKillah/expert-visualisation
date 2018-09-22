@@ -30,7 +30,7 @@ def _map_to_unit_square(len_x, len_y, idx, idy):
     unit = 1.0 / longer
 
     x_start = (idx + offset_x) * unit
-    y_start = (idy + offset_y) * unit
+    y_start = (len_y - idy - 1 + offset_y) * unit
 
     return [
         [x_start, y_start],
@@ -67,7 +67,7 @@ def _to_center(sides):
 
 
 class Square:
-    def __init__(self, level, idx, idy, value, normalized_value, cmap, fmt=None):
+    def __init__(self, level, idx, idy, value, normalized_value, cmap, type='center', fmt=None):
 
         self.level = level
         self.idx = idx
@@ -75,21 +75,55 @@ class Square:
         self.value = value  # should be already normalized
         self.normalized_value = normalized_value
         self.cmap = cmap
+        self.type = type
 
-        self.sides = _map_to_unit_square(
+        self.raw_sides = _map_to_unit_square(
             self.level.shape[1],
             self.level.shape[0],
             idx,
             idy
         )
 
-        self.center = _to_center(self.sides)
+        self.center = _to_center(self.raw_sides)
+        self.text_center = self._resolve_text_pos()
+
+        self.sides = self._resolve_sides()
 
         self.color = self._resolve_color()
         if fmt is None:
             self.fmt = ".2f"
         else:
             self.fmt = fmt
+
+    def _resolve_sides(self):
+        if self.type == 'center':
+            return self.raw_sides
+        elif self.type == 'down':
+            return [self.center, self.raw_sides[0], self.raw_sides[1]]
+        elif self.type == 'right':
+            return [self.center, self.raw_sides[1], self.raw_sides[2]]
+        elif self.type == 'up':
+            return [self.center, self.raw_sides[2], self.raw_sides[3]]
+        elif self.type == 'left':
+            return [self.center, self.raw_sides[3], self.raw_sides[0]]
+        else:
+            raise ValueError("Unknown type")
+
+    def _resolve_text_pos(self):
+        unit = (self.raw_sides[1][0] - self.raw_sides[0][0]) / 4 * 1.2
+
+        if self.type == 'center':
+            return self.center
+        elif self.type == 'right':
+            return [self.center[0] + unit, self.center[1]]
+        elif self.type == 'left':
+            return [self.center[0] - unit, self.center[1]]
+        elif self.type == 'up':
+            return [self.center[0], self.center[1] + unit]
+        elif self.type == 'down':
+            return [self.center[0], self.center[1] - unit]
+        else:
+            raise ValueError("Unknown type")
 
     def _resolve_color(self):
         type = self.level[self.idy, self.idx]
@@ -105,8 +139,15 @@ class Square:
         lum = relative_luminance(self.color)
         text_color = ".15" if lum > .408 else "w"
         annotation = ("{:" + self.fmt + "}").format(self.value)
-        text_kwargs = dict(color=text_color, ha="center", va="center")
-        x, y = self.center
+        size = 8 if self.type == 'center' else 5
+        text_kwargs = dict(
+            color=text_color,
+            ha="center",
+            va="center",
+            size=size
+        )
+
+        x, y = self.text_center
         ax.text(x, y, annotation, **text_kwargs)
 
     def plot(self, ax):
@@ -119,28 +160,39 @@ class Square:
 
 
 class PlotFuncOverLevel:
-    def __init__(self, level: np.ndarray, player_x, player_y, func: np.ndarray, scaling='minus_unit'):
-        assert level.shape == func.shape
+    def __init__(self, level: np.ndarray, player_x, player_y, func: np.ndarray, vf=True):
+        # assert level.shape == func.shape
 
         self.level = level
 
         self.player_x = player_x
         self.player_y = player_y
 
-        self.func =func
-        if scaling == 'minus_unit':
-            self.norm_func = (func + 1) / 2
+        self.func = func
 
-        self.cmap = plt.get_cmap('coolwarm')
+        if vf:
+            self.norm_func = (func + 1) / 2
+            self.cmap = plt.get_cmap('coolwarm')
+        else:
+            self.norm_func = func
+            self.cmap = plt.get_cmap('BuGn')
 
         fields = []
 
         for y in range(level.shape[0]):
             for x in range(level.shape[1]):
-                value = func[y, x]
-                norm_val = self.norm_func[y, x]
-                sq = Square(level, x, y, value, norm_val, self.cmap)
-                fields.append(sq)
+                if vf:
+                    value = func[y, x]
+                    norm_val = self.norm_func[y, x]
+                    sq = Square(level, x, y, value, norm_val, self.cmap, type='center')
+                    fields.append(sq)
+                else:
+                    for z in range(func.shape[2]):
+                        value = func[y, x, z]
+                        norm_val = self.norm_func[y, x, z]
+                        side = SIDES[z]
+                        sq = Square(level, x, y, value, norm_val, self.cmap, type=side)
+                        fields.append(sq)
 
         self.fields = fields
 
@@ -150,6 +202,6 @@ class PlotFuncOverLevel:
         ax.set_ylim(0, 1)
         for field in self.fields:
             field.plot(ax)
-        plt.savefig(img_fname)
+        plt.savefig(img_fname, dpi=400)
         plt.close()
 

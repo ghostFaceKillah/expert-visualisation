@@ -29,3 +29,9 @@ PRINTALBLE = {
     WALL, PERIL, DEADLY_PERIL, GOAL
 }
 
+SIDES = [
+    'left',
+    'right',
+    'up',
+    'down'
+]
