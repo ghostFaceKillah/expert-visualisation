@@ -1,13 +1,13 @@
 import numpy as np
 
 from grid_world.grid_world_env import load, _generate_fname
-from grid_world.plotting import PlotFuncOverLevel
+from grid_world.plotting import FuncPlot
 
 
 if __name__ == '__main__':
     level = load(_generate_fname())
 
-    f_plot = PlotFuncOverLevel(
+    f_plot = FuncPlot(
         level,
         player_x=0,
         player_y=0,

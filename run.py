@@ -35,7 +35,7 @@ def softmax(x):
     return np.exp(x) / np.sum(np.exp(x), axis=1)[:, None]
 
 
-def check_value_function(model, s_o_pairs):
+def extract_value_func_action_probs(model, s_o_pairs):
     obs_acc = [obs for state, obs in all_s_o_pairs]
     obs_batch = np.stack(obs_acc)
 
@@ -90,23 +90,11 @@ if __name__ == '__main__':
         obs, states, rewards, masks, actions, values = runner.run()
         policy_loss, value_loss, policy_entropy = model.train(obs, states, rewards, masks, actions, values)
 
-        vf, pf = check_value_function(model, all_s_o_pairs)
+        vf, pf = extract_value_func_action_probs(model, all_s_o_pairs)
 
         if i % 20 == 0:
-            plotting.PlotFuncOverLevel(
-                level=level,
-                player_y=None,
-                player_x=None,
-                func=vf,
-                vf=True
-            ).save_img(f"imgs/vf_update_{i:d}")
-            plotting.PlotFuncOverLevel(
-                level=level,
-                player_y=None,
-                player_x=None,
-                func=pf,
-                vf=False
-            ).save_img(f"imgs/probs_update_{i:d}")
+            plotting.ValueFunctionPlot(level, vf).save_img(f"imgs/vf_update_{i:d}")
+            plotting.ActionProbabilityPlot(level, pf).save_img(f"imgs/probs_update_{i:d}")
 
         r_mean = rewards.mean()
         r_acc.append(r_mean)

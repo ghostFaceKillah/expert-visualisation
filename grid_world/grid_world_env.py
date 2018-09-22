@@ -226,7 +226,7 @@ if __name__ == '__main__':
     done = False
 
     while not done:
-        key = input("What's next men")
+        key = input("What action to take next (w/s/a/d + Enter)?")
         action = _map_input_to_action(key)
 
         print(f"Taking action {action}")

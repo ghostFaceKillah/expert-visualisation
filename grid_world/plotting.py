@@ -1,3 +1,4 @@
+import abc
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -39,6 +40,7 @@ def _map_to_unit_square(len_x, len_y, idx, idy):
         [x_start, y_start + unit],
     ]
 
+
 def relative_luminance(color):
     """Calculate the relative luminance of a color according to W3C standards
     Taken straight from seaborn.
@@ -66,8 +68,8 @@ def _to_center(sides):
     return x, y
 
 
-class Square:
-    def __init__(self, level, idx, idy, value, normalized_value, cmap, type='center', fmt=None):
+class Patch:
+    def __init__(self, level, idx, idy, value, normalized_value, cmap, type='center', annotate=True, fmt=None):
 
         self.level = level
         self.idx = idx
@@ -76,6 +78,7 @@ class Square:
         self.normalized_value = normalized_value
         self.cmap = cmap
         self.type = type
+        self.annotate = annotate
 
         self.raw_sides = _map_to_unit_square(
             self.level.shape[1],
@@ -153,55 +156,73 @@ class Square:
     def plot(self, ax):
         polygon = plt.Polygon(self.sides, facecolor=self.color)
         ax.add_patch(polygon)
-        self._annotate_text(ax)
+        if self.annotate:
+            self._annotate_text(ax)
 
     def __repr__(self):
         return str(self.sides)
 
 
-class PlotFuncOverLevel:
-    def __init__(self, level: np.ndarray, player_x, player_y, func: np.ndarray, vf=True):
-        # assert level.shape == func.shape
-
+class FuncPlot(abc.ABC):
+    def __init__(self, level: np.ndarray, func: np.ndarray):
         self.level = level
-
-        self.player_x = player_x
-        self.player_y = player_y
-
         self.func = func
 
-        if vf:
-            self.norm_func = (func + 1) / 2
-            self.cmap = plt.get_cmap('coolwarm')
-        else:
-            self.norm_func = func
-            self.cmap = plt.get_cmap('BuGn')
-
+    def _resolve_fields(self):
         fields = []
 
-        for y in range(level.shape[0]):
-            for x in range(level.shape[1]):
-                if vf:
-                    value = func[y, x]
-                    norm_val = self.norm_func[y, x]
-                    sq = Square(level, x, y, value, norm_val, self.cmap, type='center')
-                    fields.append(sq)
-                else:
-                    for z in range(func.shape[2]):
-                        value = func[y, x, z]
-                        norm_val = self.norm_func[y, x, z]
-                        side = SIDES[z]
-                        sq = Square(level, x, y, value, norm_val, self.cmap, type=side)
-                        fields.append(sq)
+        for y in range(self.level.shape[0]):
+            for x in range(self.level.shape[1]):
+                new_fields = self._inner_loop(x, y)
+                for field in new_fields:
+                    fields.append(field)
 
-        self.fields = fields
+        return fields
+
+    @abc.abstractmethod
+    def _inner_loop(self, x, y):
+        raise NotImplementedError
 
     def save_img(self, img_fname):
         ax = plt.axes()
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)
-        for field in self.fields:
+        for field in self._resolve_fields():
             field.plot(ax)
         plt.savefig(img_fname, dpi=400)
         plt.close()
 
+
+class ValueFunctionPlot(FuncPlot):
+    def __init__(self, level: np.ndarray, func: np.ndarray):
+        super().__init__(level, func)
+        self.norm_func = (func + 1) / 2
+        self.cmap = plt.get_cmap('coolwarm')
+
+    def _inner_loop(self, x, y):
+        value = self.func[y, x]
+        norm_val = self.norm_func[y, x]
+        sq = Patch(self.level, x, y, value, norm_val, self.cmap, type='center')
+        return [sq]
+
+
+class ActionProbabilityPlot(FuncPlot):
+    def __init__(self, level: np.ndarray, func: np.ndarray):
+        super().__init__(level, func)
+        self.norm_func = func
+        self.cmap = plt.get_cmap('BuGn')
+
+    def _inner_loop(self, x, y):
+        fields = []
+        for z in range(self.func.shape[2]):
+            value = self.func[y, x, z]
+            norm_val = self.norm_func[y, x, z]
+            side = SIDES[z]
+            sq = Patch(
+                self.level, x, y, value, norm_val,
+                self.cmap, type=side,
+                annotate=self.level[y, x] not in PRINTALBLE
+            )
+            fields.append(sq)
+
+        return fields
